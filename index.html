@@ -1,0 +1,1276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" href="./kimsze_sharp16.ico?v=20260111a" sizes="any">
+<link rel="shortcut icon" href="./kimsze_sharp16.ico?v=20260111a">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>P1 Compare Numbers (100–999) — Place Values + Unequal Signs</title>
+
+  <style>
+    :root{
+      --bg:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --line:#e2e8f0;
+
+      --cardH:#ffe4ee;   /* hundreds */
+      --cardT:#ffedd5;   /* tens */
+      --cardO:#e0f2fe;   /* ones */
+
+      --input:#e8f6df;
+      --inputLine:#9bbf87;
+
+      --radius:22px;
+      --shadow:0 14px 40px rgba(2,6,23,.10);
+
+      --drawerW:min(420px, 92vw);
+
+      /* stage base size (auto-scaled; no scrolling) */
+      --baseW: 980;
+      --baseH: 690;
+
+      /* smaller fonts so everything fits nicely */
+      --S-title: 34px;
+      --S-pvLabel: 24px;
+      --S-pvValue: 26px;
+      --S-row: 26px;
+
+      /* block sizes (teacher adjustable) */
+      --hundW: 88px;   /* acts as MAX width; JS auto-fits smaller when needed */
+      --tenW: 12px;
+      --tenH: 64px;    /* auto-set in JS */
+      --oneS: 16px;
+
+      /* layout gaps (keep in sync with JS fit logic) */
+      --hundColGap: 10px;
+      --hundRowGap: 6px;
+      --onesGap: 6px;
+    }
+
+    *{box-sizing:border-box}
+    html, body{
+      height:100%;
+      margin:0;
+      overflow:hidden;
+      overscroll-behavior:none;
+      background:var(--bg);
+      color:var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", sans-serif;
+    }
+
+    body.drawer-open .viewport{
+      padding-right: calc(var(--drawerW) + 10px);
+    }
+
+    .viewport{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 10px;
+    }
+    .stage{
+      width: calc(var(--baseW) * 1px);
+      height: calc(var(--baseH) * 1px);
+      transform-origin: top left;
+      background:#fff;
+      border-radius: 18px;
+      position:relative;
+    }
+
+    .wrap{
+      width:100%;
+      height:100%;
+      padding: 14px 16px 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 12px;
+    }
+
+    .titleLine{
+      display:flex;
+      align-items:flex-end;
+      gap: 10px;
+      flex-wrap:wrap;
+    }
+    .titleText{
+      font-size: var(--S-title);
+      font-weight: 900;
+      line-height: 1.02;
+      margin:0;
+      letter-spacing:.2px;
+    }
+    .hdrBlank{
+      width: 98px;
+      height: 54px;
+      border-radius: 16px;
+      border: 3px solid var(--inputLine);
+      background: var(--input);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 30px;
+      font-weight: 900;
+      color: rgba(15,23,42,.95);
+      user-select:none;
+    }
+
+    .settingsBtn{
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--ink);
+      border-radius:999px;
+      padding:10px 14px;
+      font-weight:800;
+      cursor:pointer;
+      box-shadow: 0 8px 18px rgba(2,6,23,.06);
+      white-space:nowrap;
+      height: 44px;
+      align-self:flex-start;
+    }
+    .settingsBtn:active{ transform: translateY(1px); }
+
+    .floatGear{
+      position:absolute;
+      right: 14px;
+      bottom: 14px;
+      z-index: 5;
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      border:1px solid var(--line);
+      background:#fff;
+      box-shadow: 0 14px 30px rgba(2,6,23,.14);
+      cursor:pointer;
+      font-size: 22px;
+      font-weight: 900;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .floatGear:active{ transform: translateY(1px); }
+
+    .grid{
+      flex: 1;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items:stretch;
+      min-height: 0;
+    }
+
+    .side{
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      background:#fff;
+      padding: 12px 12px 10px;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+
+    .blocks{
+      flex: 1;
+      min-height: 0;
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      align-items:end;
+      padding: 6px 6px 6px;
+    }
+
+    .hundredsArea, .tensArea, .onesArea{
+      border-radius: 14px;
+      background:#fff;
+      padding: 6px 4px;
+      min-height: 210px;
+      overflow:hidden;
+      position:relative;
+    }
+
+    /* ✅ Hundreds: two vertical stacks (5 left, 4 right) for space-saving */
+    .hundredsArea{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--hundColGap);
+      align-items:end;
+      justify-items:center;
+      padding: 8px 6px;
+    }
+    .hundCol{
+      width:100%;
+      display:flex;
+      flex-direction: column-reverse; /* stack from bottom up */
+      gap: var(--hundRowGap);
+      align-items:center;
+      justify-content:flex-start;
+      min-height: 0;
+    }
+
+    /* ✅ Tens: wrap nicely */
+    .tensArea{
+      display:flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-content:flex-end;
+      justify-content:center;
+      gap: 6px;
+      padding: 6px 4px;
+    }
+
+    /* ✅ Ones: fixed 5 columns so it becomes 5 on top row, 4 on bottom row */
+    .onesArea{
+      display:grid;
+      grid-template-columns: repeat(5, var(--oneS));
+      grid-auto-rows: var(--oneS);
+      gap: var(--onesGap);
+      align-content:end;
+      justify-content:center;
+      padding: 6px 4px;
+    }
+
+    .hundredSvg{
+      width: var(--hundW);
+      height: auto;
+      display:block;
+      filter: drop-shadow(0 10px 14px rgba(2,6,23,.12));
+      user-select:none;
+      pointer-events:none;
+      position: static;
+      transform: none;
+    }
+
+    .rodSvg{
+      width: var(--tenW);
+      height: var(--tenH);
+      display:block;
+      filter: drop-shadow(0 8px 12px rgba(2,6,23,.10));
+      user-select:none;
+      pointer-events:none;
+    }
+    .cubeSvg{
+      width: var(--oneS);
+      height: var(--oneS);
+      display:block;
+      filter: drop-shadow(0 8px 12px rgba(2,6,23,.08));
+      user-select:none;
+      pointer-events:none;
+    }
+
+    .pvCard{
+      border-radius: 24px;
+      overflow:hidden;
+      border:2px solid #cbd5e1;
+      background:#fff;
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+    .pvCell{
+      padding: 8px 8px 8px;
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+      align-items:center;
+      justify-content:center;
+      min-height: 92px;
+    }
+    .pvCell.hund{ background: linear-gradient(180deg, #ffb8d2 0%, var(--cardH) 100%); }
+    .pvCell.tens{ background: linear-gradient(180deg, #ffd08a 0%, var(--cardT) 100%); }
+    .pvCell.ones{ background: linear-gradient(180deg, #9bdcff 0%, var(--cardO) 100%); }
+
+    .pvLabel{
+      font-weight: 900;
+      font-size: var(--S-pvLabel);
+      letter-spacing:.3px;
+      text-shadow: 0 2px 0 rgba(255,255,255,.35);
+    }
+
+    .pvValue{
+      width: 74px;
+      height: 44px;
+      border-radius: 14px;
+      border: 3px solid rgba(2,6,23,.12);
+      background: rgba(255,255,255,.75);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: var(--S-pvValue);
+      font-weight: 900;
+    }
+    .pvValue.editable{
+      border-color: var(--inputLine);
+      background: var(--input);
+    }
+    .pvInput{
+      width:100%;
+      height:100%;
+      border:0;
+      outline:none;
+      background:transparent;
+      text-align:center;
+      font-size: var(--S-pvValue);
+      font-weight: 900;
+    }
+
+    .answers{
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px 12px 8px;
+      background:#fff;
+      box-shadow: var(--shadow);
+    }
+    .row{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap: 10px;
+      font-size: var(--S-row);
+      font-weight: 900;
+      margin: 6px 0;
+    }
+
+    .ineq{
+      font-size: 32px;
+      font-weight: 1000;
+      line-height: 1;
+      padding: 0 2px;
+      user-select:none;
+    }
+
+    .blank{
+      width: 118px;
+      height: 56px;
+      border-radius: 16px;
+      border: 3px solid var(--inputLine);
+      background: var(--input);
+      font-size: 30px;
+      font-weight: 900;
+      text-align:center;
+      outline:none;
+    }
+    .blank.good{ border-color:#16a34a; box-shadow: 0 0 0 4px rgba(34,197,94,.15); }
+    .blank.bad{ border-color:#ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,.14); }
+
+    .pvValue.good{
+      border-color:#16a34a !important;
+      box-shadow: 0 0 0 4px rgba(34,197,94,.15);
+    }
+    .pvValue.bad{
+      border-color:#ef4444 !important;
+      box-shadow: 0 0 0 4px rgba(239,68,68,.14);
+    }
+
+    .btnRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top: 8px;
+    }
+    .btn{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-weight: 900;
+      cursor:pointer;
+      box-shadow: 0 10px 20px rgba(2,6,23,.08);
+      user-select:none;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      border-color: transparent;
+      background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+      color:#fff;
+    }
+    .btn.toggle-on{
+      border-color:#16a34a;
+      box-shadow: 0 10px 20px rgba(2,6,23,.08), 0 0 0 4px rgba(34,197,94,.12);
+    }
+
+    .msg{ font-weight: 800; color: var(--muted); }
+
+    .credit{
+      text-align:right;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* Teacher drawer */
+    .drawerOverlay{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,0);
+      display:none;
+      z-index: 50;
+    }
+    .drawer{
+      position:fixed; top:0; right:0; height:100%;
+      width: var(--drawerW);
+      background:#fff;
+      border-left:1px solid var(--line);
+      box-shadow: -20px 0 60px rgba(2,6,23,.25);
+      transform: translateX(100%);
+      transition: transform .22s ease;
+      z-index: 60;
+      display:flex;
+      flex-direction:column;
+    }
+    .drawerOverlay.show{ display:block; }
+    .drawer.show{ transform: translateX(0); }
+
+    .drawerTop{
+      position:sticky; top:0;
+      background:#fff;
+      border-bottom:1px solid var(--line);
+      padding: 12px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      z-index:2;
+    }
+    .drawerTop h2{ margin:0; font-size: 16px; letter-spacing:.2px; }
+    .closeBtn{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-weight: 900;
+      cursor:pointer;
+    }
+    .drawerBody{ padding: 14px; overflow:auto; }
+
+    .field{
+      border:1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background:#fafafa;
+    }
+    .field label{ display:block; font-weight: 900; margin-bottom: 6px; }
+    .help{ color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 6px; }
+    .numRow{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .setNum{
+      width: 150px;
+      height: 46px;
+      border-radius: 12px;
+      border:1px solid #cbd5e1;
+      padding: 0 10px;
+      font-size: 16px;
+      font-weight: 800;
+      outline:none;
+      background:#fff;
+    }
+
+    .toggleRow{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 0 2px;
+    }
+    .toggleRow span{ font-weight: 900; }
+    .switch{
+      appearance:none;
+      width: 54px;
+      height: 30px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      border:1px solid #cbd5e1;
+      position:relative;
+      cursor:pointer;
+      outline:none;
+    }
+    .switch::after{
+      content:"";
+      width: 24px; height: 24px;
+      border-radius:999px;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(2,6,23,.18);
+      position:absolute;
+      left: 3px; top: 2px;
+      transition: transform .18s ease;
+    }
+    .switch:checked{ background: #22c55e; border-color:#16a34a; }
+    .switch:checked::after{ transform: translateX(24px); }
+
+    .sliderRow{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items:center;
+      margin-top: 8px;
+    }
+    input[type="range"]{ width:100%; }
+    .pill{
+      font-weight:900;
+      font-size:12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border:1px solid #cbd5e1;
+      background:#fff;
+      white-space:nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Ones (yellow) -->
+  <template id="tplOne">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56.5 64" aria-hidden="true" focusable="false">
+      <defs>
+        <style>
+          .cls-1 { fill: #f7b12b; }
+          .cls-2 { fill: #c97e00; }
+          .cls-3 { fill: #e48f00; }
+          .cls-4 { fill: #fff; }
+        </style>
+      </defs>
+      <polygon class="cls-2" points="0 16 0 48 28.25 64 28.25 32 0 16"/>
+      <polygon class="cls-3" points="28.25 0 0 16 28.25 32 56.5 16 28.25 0"/>
+      <polygon class="cls-1" points="56.5 16 28.25 32 28.25 64 56.5 48 56.5 16"/>
+      <polygon class="cls-4" points="28.25 33.15 1 17.73 1.5 16.86 28.25 32 55 16.86 55.5 17.73 28.25 33.15"/>
+    </svg>
+  </template>
+
+  <!-- Tens (changed to yellow) -->
+  <template id="tplTen">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 39.18 206" aria-hidden="true" focusable="false">
+      <defs>
+        <style>
+          .cls-1 { fill: #f7b12b; }
+          .cls-2 { fill: #c97e00; }
+          .cls-3 { fill: #e48f00; }
+          .cls-4 { fill: #fff; }
+        </style>
+      </defs>
+      <polygon class="cls-2" points="0 10.3 0 195.7 19.59 206 19.59 20.6 0 10.3"/>
+      <polygon class="cls-3" points="19.59 0 0 10.3 19.59 20.6 39.18 10.3 19.59 0"/>
+      <polygon class="cls-1" points="39.18 10.3 19.59 20.6 19.59 206 39.18 195.7 39.18 10.3"/>
+      <g>
+        <polygon class="cls-4" points="19.59 21.74 1 11.95 1.46 11.06 19.59 20.6 37.72 11.06 38.18 11.95 19.59 21.74"/>
+        <polygon class="cls-4" points="19.59 40.24 1 30.45 1.46 29.56 19.59 39.1 37.72 29.56 38.18 30.45 19.59 40.24"/>
+        <polygon class="cls-4" points="19.59 58.74 1 48.95 1.46 48.06 19.59 57.6 37.72 48.06 38.18 48.95 19.59 58.74"/>
+        <polygon class="cls-4" points="19.59 77.24 1 67.45 1.46 66.56 19.59 76.1 37.72 66.56 38.18 67.45 19.59 77.24"/>
+        <polygon class="cls-4" points="19.59 95.74 1 85.95 1.46 85.06 19.59 94.6 37.72 85.06 38.18 85.95 19.59 95.74"/>
+        <polygon class="cls-4" points="19.59 114.24 1 104.45 1.46 103.56 19.59 113.1 37.72 103.56 38.18 104.45 19.59 114.24"/>
+        <polygon class="cls-4" points="19.59 132.74 1 122.95 1.46 122.06 19.59 131.6 37.72 122.06 38.18 122.95 19.59 132.74"/>
+        <polygon class="cls-4" points="19.59 151.24 1 141.45 1.46 140.56 19.59 150.1 37.72 140.56 38.18 141.45 19.59 151.24"/>
+        <polygon class="cls-4" points="19.59 169.74 1 159.95 1.46 159.06 19.59 168.6 37.72 159.06 38.18 159.95 19.59 169.74"/>
+        <polygon class="cls-4" points="19.59 188.24 1 178.45 1.46 177.56 19.59 187.1 37.72 177.56 38.18 178.45 19.59 188.24"/>
+      </g>
+    </svg>
+  </template>
+
+  <div class="viewport">
+    <div class="stage" id="stage">
+      <div class="wrap">
+        <div class="topbar">
+          <div class="titleLine">
+            <div class="titleText">Compare</div>
+            <div class="hdrBlank" id="hdrA">???</div>
+            <div class="titleText">and</div>
+            <div class="hdrBlank" id="hdrB">???</div>
+            <div class="titleText">.</div>
+          </div>
+          <button class="settingsBtn" id="openSettings">⚙️ Teacher Settings</button>
+        </div>
+
+        <div class="grid">
+          <div class="side">
+            <div class="blocks">
+              <div class="hundredsArea" id="leftHundreds"></div>
+              <div class="tensArea" id="leftTens"></div>
+              <div class="onesArea" id="leftOnes"></div>
+            </div>
+            <div class="pvCard">
+              <div class="pvCell hund">
+                <div class="pvLabel">Hundreds</div>
+                <div class="pvValue" id="leftHundVal"></div>
+              </div>
+              <div class="pvCell tens">
+                <div class="pvLabel">Tens</div>
+                <div class="pvValue" id="leftTensVal"></div>
+              </div>
+              <div class="pvCell ones">
+                <div class="pvLabel">Ones</div>
+                <div class="pvValue" id="leftOnesVal"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="side">
+            <div class="blocks">
+              <div class="hundredsArea" id="rightHundreds"></div>
+              <div class="tensArea" id="rightTens"></div>
+              <div class="onesArea" id="rightOnes"></div>
+            </div>
+            <div class="pvCard">
+              <div class="pvCell hund">
+                <div class="pvLabel">Hundreds</div>
+                <div class="pvValue" id="rightHundVal"></div>
+              </div>
+              <div class="pvCell tens">
+                <div class="pvLabel">Tens</div>
+                <div class="pvValue" id="rightTensVal"></div>
+              </div>
+              <div class="pvCell ones">
+                <div class="pvLabel">Ones</div>
+                <div class="pvValue" id="rightOnesVal"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="answers">
+          <div class="row">
+            <input class="blank" id="gtA" inputmode="numeric" maxlength="3" aria-label="Greater-than left number">
+            <span class="ineq">&gt;</span>
+            <input class="blank" id="gtB" inputmode="numeric" maxlength="3" aria-label="Greater-than right number">
+          </div>
+
+          <div class="row">
+            <input class="blank" id="ltA" inputmode="numeric" maxlength="3" aria-label="Less-than left number">
+            <span class="ineq">&lt;</span>
+            <input class="blank" id="ltB" inputmode="numeric" maxlength="3" aria-label="Less-than right number">
+          </div>
+
+          <div class="btnRow">
+            <button class="btn primary" id="checkBtn">Check</button>
+
+            <button class="btn" id="quickRandomBtn" title="New random numbers">Random</button>
+            <button class="btn" id="quickHeaderBtn" title="Toggle header reveal">Reveal header</button>
+            <button class="btn" id="quickPVBtn" title="Toggle place-value reveal">Reveal place values</button>
+
+            <button class="btn" id="clearBtn">Clear</button>
+            <span class="msg" id="msg"></span>
+          </div>
+
+          <div class="credit">Designed by Lim Kim Sze © 2026</div>
+        </div>
+
+        <button class="floatGear" id="openSettings2" aria-label="Open teacher settings">⚙️</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawerOverlay" id="overlay" tabindex="-1" aria-hidden="true"></div>
+  <aside class="drawer" id="drawer" aria-label="Teacher Settings Panel">
+    <div class="drawerTop">
+      <h2>Teacher Settings</h2>
+      <button class="closeBtn" id="closeSettings">Close ✕</button>
+    </div>
+    <div class="drawerBody">
+      <div class="field">
+        <label>Set the two numbers (100–999)</label>
+        <div class="numRow">
+          <input class="setNum" id="setLeft" type="number" min="100" max="999" step="1" value="518">
+          <input class="setNum" id="setRight" type="number" min="100" max="999" step="1" value="414">
+          <button class="btn" id="applyBtn">Apply</button>
+          <button class="btn" id="randomBtn">Random</button>
+        </div>
+        <div class="help">If both numbers are the same, the right number will be nudged by 1.</div>
+      </div>
+
+      <div class="field">
+        <div class="toggleRow">
+          <span>Reveal numbers in header</span>
+          <input class="switch" id="revealHeader" type="checkbox">
+        </div>
+        <div class="toggleRow">
+          <span>Reveal Hundreds/Tens/Ones values</span>
+          <input class="switch" id="revealPV" type="checkbox">
+        </div>
+        <div class="help">If OFF, pupils must type the place values into the boxes.</div>
+      </div>
+
+      <div class="field">
+        <label>Block sizes (adjust until they fit nicely)</label>
+
+        <div class="sliderRow">
+          <input id="hundWRange" type="range" min="60" max="120" step="1" value="88">
+          <span class="pill">Hundreds: <span id="hundWVal">88</span>px</span>
+        </div>
+
+        <div class="sliderRow" style="margin-top:10px">
+          <input id="tenWRange" type="range" min="8" max="22" step="1" value="12">
+          <span class="pill">Tens width: <span id="tenWVal">12</span>px</span>
+        </div>
+        <div class="help">Tens height auto-kept to your SVG aspect ratio.</div>
+
+        <div class="sliderRow" style="margin-top:10px">
+          <input id="oneSRange" type="range" min="12" max="26" step="1" value="16">
+          <span class="pill">Ones size: <span id="oneSVal">16</span>px</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Quick reset (teacher)</label>
+        <button class="btn" id="teacherClear">Clear pupil inputs</button>
+      </div>
+    </div>
+  </aside>
+
+  <script>
+    // ✅ Hundreds SVG (now all yellow)
+    const SVG_HUNDRED = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 181.21 118.00">
+<defs>
+  <clipPath id="hundred-clip-top"><polygon points="90.60,4.00 177.21,54.00 90.60,104.00 4.00,54.00"/></clipPath>
+  <clipPath id="hundred-clip-right"><polygon points="177.21,64.00 90.60,114.00 90.60,104.00 177.21,54.00"/></clipPath>
+  <clipPath id="hundred-clip-left"><polygon points="4.00,64.00 90.60,114.00 90.60,104.00 4.00,54.00"/></clipPath>
+</defs>
+
+<!-- Faces (yellow set like ones cube) -->
+<polygon points="4.00,64.00 90.60,114.00 90.60,104.00 4.00,54.00" fill="#c97e00"/>
+<polygon points="177.21,64.00 90.60,114.00 90.60,104.00 177.21,54.00" fill="#e48f00"/>
+<polygon points="90.60,4.00 177.21,54.00 90.60,104.00 4.00,54.00" fill="#f7b12b"/>
+
+<!-- Grid lines (clipped to each face) -->
+<path d="M 4.00 64.00 L 4.00 54.00 M 12.66 69.00 L 12.66 59.00 M 21.32 74.00 L 21.32 64.00 M 29.98 79.00 L 29.98 69.00 M 38.64 84.00 L 38.64 74.00 M 47.30 89.00 L 47.30 79.00 M 55.96 94.00 L 55.96 84.00 M 64.62 99.00 L 64.62 89.00 M 73.28 104.00 L 73.28 94.00 M 81.94 109.00 L 81.94 99.00 M 90.60 114.00 L 90.60 104.00 M 4.00 64.00 L 90.60 114.00 M 4.00 54.00 L 90.60 104.00" clip-path="url(#hundred-clip-left)" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M 177.21 64.00 L 177.21 54.00 M 168.54 69.00 L 168.54 59.00 M 159.88 74.00 L 159.88 64.00 M 151.22 79.00 L 151.22 69.00 M 142.56 84.00 L 142.56 74.00 M 133.90 89.00 L 133.90 79.00 M 125.24 94.00 L 125.24 84.00 M 116.58 99.00 L 116.58 89.00 M 107.92 104.00 L 107.92 94.00 M 99.26 109.00 L 99.26 99.00 M 90.60 114.00 L 90.60 104.00 M 177.21 64.00 L 90.60 114.00 M 177.21 54.00 L 90.60 104.00" clip-path="url(#hundred-clip-right)" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M 90.60 4.00 L 4.00 54.00 M 99.26 9.00 L 12.66 59.00 M 107.92 14.00 L 21.32 64.00 M 116.58 19.00 L 29.98 69.00 M 125.24 24.00 L 38.64 74.00 M 133.90 29.00 L 47.30 79.00 M 142.56 34.00 L 55.96 84.00 M 151.22 39.00 L 64.62 89.00 M 159.88 44.00 L 73.28 94.00 M 168.54 49.00 L 81.94 99.00 M 177.21 54.00 L 90.60 104.00 M 90.60 4.00 L 177.21 54.00 M 81.94 9.00 L 168.54 59.00 M 73.28 14.00 L 159.88 64.00 M 64.62 19.00 L 151.22 69.00 M 55.96 24.00 L 142.56 74.00 M 47.30 29.00 L 133.90 79.00 M 38.64 34.00 L 125.24 84.00 M 29.98 39.00 L 116.58 89.00 M 21.32 44.00 L 107.92 94.00 M 12.66 49.00 L 99.26 99.00 M 4.00 54.00 L 90.60 104.00" clip-path="url(#hundred-clip-top)" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+
+<!-- Face outlines -->
+<polygon points="4.00,64.00 90.60,114.00 90.60,104.00 4.00,54.00" fill="none" stroke="#ffffff" stroke-width="1.68"/>
+<polygon points="177.21,64.00 90.60,114.00 90.60,104.00 177.21,54.00" fill="none" stroke="#ffffff" stroke-width="1.68"/>
+<polygon points="90.60,4.00 177.21,54.00 90.60,104.00 4.00,54.00" fill="none" stroke="#ffffff" stroke-width="1.68"/>
+</svg>`;
+
+    const BASE_W = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--baseW')) || 980;
+    const BASE_H = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--baseH')) || 690;
+    const stage = document.getElementById('stage');
+
+    const overlay = document.getElementById('overlay');
+    const drawer = document.getElementById('drawer');
+
+    function fitStage(){
+      const pad = 20;
+      const vw = Math.max(320, window.innerWidth - pad);
+      const vh = Math.max(320, window.innerHeight - pad);
+
+      const drawerOpen = document.body.classList.contains('drawer-open');
+      const dw = drawerOpen ? drawer.getBoundingClientRect().width : 0;
+      const availW = Math.max(320, vw - dw);
+
+      const s = Math.min(availW / BASE_W, vh / BASE_H);
+      stage.style.transform = `scale(${s})`;
+    }
+    window.addEventListener('resize', fitStage);
+    window.addEventListener('orientationchange', fitStage);
+
+    // numbers
+    let leftNum = 518;
+    let rightNum = 414;
+    let revealHeaderNumbers = false;
+    let revealPVNumbers = false;
+
+    // aspect ratios
+    const TEN_ASPECT = 206.0 / 39.18;
+    const HUND_ASPECT = 118.0 / 181.21;
+
+    // header
+    const hdrA = document.getElementById('hdrA');
+    const hdrB = document.getElementById('hdrB');
+
+    // block areas
+    const leftHundEl = document.getElementById('leftHundreds');
+    const leftTensEl = document.getElementById('leftTens');
+    const leftOnesEl = document.getElementById('leftOnes');
+
+    const rightHundEl = document.getElementById('rightHundreds');
+    const rightTensEl = document.getElementById('rightTens');
+    const rightOnesEl = document.getElementById('rightOnes');
+
+    // pv boxes
+    const leftHundVal = document.getElementById('leftHundVal');
+    const leftTensVal = document.getElementById('leftTensVal');
+    const leftOnesVal = document.getElementById('leftOnesVal');
+
+    const rightHundVal = document.getElementById('rightHundVal');
+    const rightTensVal = document.getElementById('rightTensVal');
+    const rightOnesVal = document.getElementById('rightOnesVal');
+
+    // inequality inputs
+    const gtA = document.getElementById('gtA');
+    const gtB = document.getElementById('gtB');
+    const ltA = document.getElementById('ltA');
+    const ltB = document.getElementById('ltB');
+    const msg = document.getElementById('msg');
+
+    // teacher controls
+    const setLeft = document.getElementById('setLeft');
+    const setRight = document.getElementById('setRight');
+    const applyBtn = document.getElementById('applyBtn');
+    const randomBtn = document.getElementById('randomBtn');
+    const revealHeader = document.getElementById('revealHeader');
+    const revealPV = document.getElementById('revealPV');
+    const teacherClear = document.getElementById('teacherClear');
+
+    // size sliders
+    const hundWRange = document.getElementById('hundWRange');
+    const tenWRange = document.getElementById('tenWRange');
+    const oneSRange = document.getElementById('oneSRange');
+    const hundWVal = document.getElementById('hundWVal');
+    const tenWVal = document.getElementById('tenWVal');
+    const oneSVal = document.getElementById('oneSVal');
+
+    // drawer buttons
+    const openSettings = document.getElementById('openSettings');
+    const openSettings2 = document.getElementById('openSettings2');
+    const closeSettings = document.getElementById('closeSettings');
+
+    // main buttons
+    const checkBtn = document.getElementById('checkBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const quickRandomBtn = document.getElementById('quickRandomBtn');
+    const quickHeaderBtn = document.getElementById('quickHeaderBtn');
+    const quickPVBtn = document.getElementById('quickPVBtn');
+
+    // svg templates
+    const tplTen = document.getElementById('tplTen');
+    const tplOne = document.getElementById('tplOne');
+
+    function clamp100to999(n){
+      n = Number(n);
+      if (!Number.isFinite(n)) return 100;
+      n = Math.round(n);
+      if (n < 100) n = 100;
+      if (n > 999) n = 999;
+      return n;
+    }
+
+    function splitHundTensOnes(n){
+      return {
+        hund: Math.floor(n/100),
+        tens: Math.floor((n%100)/10),
+        ones: n % 10
+      };
+    }
+
+    function sanitizeDigits(val, maxLen){
+      const s = String(val ?? '').trim();
+      if (!s) return '';
+      return s.replace(/[^\d]/g,'').slice(0, maxLen);
+    }
+
+    function clearMarks(){
+      [gtA,gtB,ltA,ltB].forEach(el=> el.classList.remove('good','bad'));
+      [leftHundVal,leftTensVal,leftOnesVal,rightHundVal,rightTensVal,rightOnesVal].forEach(el=> el.classList.remove('good','bad'));
+      msg.textContent = '';
+    }
+
+    function mark(el, ok){
+      el.classList.remove('good','bad');
+      el.classList.add(ok ? 'good' : 'bad');
+    }
+
+    function cloneSvgFromTemplate(tpl, className){
+      const frag = tpl.content.cloneNode(true);
+      const svg = frag.querySelector('svg');
+      svg.classList.add(className);
+      svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+      return svg;
+    }
+
+    // Avoid any ID collisions inside the hundred SVG by suffixing ids and updating url(#...)
+    function uniquifySvgIds(svg){
+      const suffix = '-' + Math.random().toString(36).slice(2,8);
+      const withId = svg.querySelectorAll('[id]');
+      const map = new Map();
+      withId.forEach(node=>{
+        const oldId = node.id;
+        const newId = oldId + suffix;
+        map.set(oldId, newId);
+        node.id = newId;
+      });
+
+      const all = svg.querySelectorAll('*');
+      all.forEach(node=>{
+        for (const attr of node.getAttributeNames()){
+          const v = node.getAttribute(attr);
+          if (!v) continue;
+          const m = v.match(/url\(#([^)]+)\)/);
+          if (m && map.has(m[1])){
+            node.setAttribute(attr, `url(#${map.get(m[1])})`);
+          }
+          if ((attr === 'href' || attr === 'xlink:href') && v.startsWith('#')){
+            const key = v.slice(1);
+            if (map.has(key)) node.setAttribute(attr, `#${map.get(key)}`);
+          }
+        }
+      });
+    }
+
+    function makeHundredSvg(){
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(SVG_HUNDRED, 'image/svg+xml');
+      const svg = doc.documentElement;
+      const imported = document.importNode(svg, true);
+      imported.classList.add('hundredSvg');
+      imported.setAttribute('preserveAspectRatio','xMidYMid meet');
+      uniquifySvgIds(imported);
+      return imported;
+    }
+
+    function getCssPx(varName, fallback){
+      const v = getComputedStyle(document.documentElement).getPropertyValue(varName);
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function fitHundWForTwoCol(countL, countR, container, maxW){
+      if (countL <= 0 && countR <= 0) return maxW;
+
+      const styles = getComputedStyle(container);
+      const padX = (parseFloat(styles.paddingLeft)||0) + (parseFloat(styles.paddingRight)||0);
+      const padY = (parseFloat(styles.paddingTop)||0) + (parseFloat(styles.paddingBottom)||0);
+
+      const gapCol = getCssPx('--hundColGap', 10);
+      const gapRow = getCssPx('--hundRowGap', 6);
+
+      const availW = Math.max(40, container.clientWidth - padX - gapCol);
+      const maxColW = availW / 2;
+
+      const availH = Math.max(60, container.clientHeight - padY);
+
+      const wFromHeight = (count)=>{
+        if (count <= 0) return maxColW;
+        return (availH - (count - 1) * gapRow) / (count * HUND_ASPECT);
+      };
+
+      const wH = Math.min(wFromHeight(countL), wFromHeight(countR));
+      const w = Math.min(maxColW, wH, maxW);
+
+      return Math.max(34, Math.floor(w));
+    }
+
+    function renderHundreds(hundContainer, hundCount){
+      hundContainer.innerHTML = '';
+
+      const colL = document.createElement('div');
+      colL.className = 'hundCol';
+      const colR = document.createElement('div');
+      colR.className = 'hundCol';
+      hundContainer.appendChild(colL);
+      hundContainer.appendChild(colR);
+
+      const leftCount = Math.min(5, hundCount);
+      const rightCount = Math.max(0, hundCount - 5);
+
+      const maxW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hundW')) || 88;
+      const fitW = fitHundWForTwoCol(leftCount, rightCount, hundContainer, maxW);
+
+      for (let i=0; i<leftCount; i++){
+        const svg = makeHundredSvg();
+        svg.style.width = fitW + 'px';
+        colL.appendChild(svg);
+      }
+      for (let i=0; i<rightCount; i++){
+        const svg = makeHundredSvg();
+        svg.style.width = fitW + 'px';
+        colR.appendChild(svg);
+      }
+    }
+
+    function renderOnes(onesContainer, onesCount){
+      onesContainer.innerHTML = '';
+      // fixed 5 columns to make 5+4 layout
+      onesContainer.style.gridTemplateColumns = `repeat(5, var(--oneS))`;
+      for (let i = 0; i < onesCount; i++){
+        onesContainer.appendChild(cloneSvgFromTemplate(tplOne, 'cubeSvg'));
+      }
+    }
+
+    function renderBlocks(hundContainer, tensContainer, onesContainer, n){
+      tensContainer.innerHTML = '';
+      onesContainer.innerHTML = '';
+
+      const { hund, tens, ones } = splitHundTensOnes(n);
+
+      renderHundreds(hundContainer, hund);
+
+      for (let i=0; i<tens; i++){
+        tensContainer.appendChild(cloneSvgFromTemplate(tplTen, 'rodSvg'));
+      }
+      renderOnes(onesContainer, ones);
+    }
+
+    function applySizes(){
+      const hundW = Math.max(60, Math.min(120, Number(hundWRange.value)));
+      const tenW = Math.max(8, Math.min(22, Number(tenWRange.value)));
+      const oneS = Math.max(12, Math.min(26, Number(oneSRange.value)));
+
+      const tenH = Math.round(tenW * TEN_ASPECT);
+
+      document.documentElement.style.setProperty('--hundW', hundW + 'px');
+      document.documentElement.style.setProperty('--tenW', tenW + 'px');
+      document.documentElement.style.setProperty('--tenH', tenH + 'px');
+      document.documentElement.style.setProperty('--oneS', oneS + 'px');
+
+      hundWVal.textContent = hundW;
+      tenWVal.textContent = tenW;
+      oneSVal.textContent = oneS;
+
+      // re-render to re-fit hundreds width
+      renderBlocks(leftHundEl, leftTensEl, leftOnesEl, leftNum);
+      renderBlocks(rightHundEl, rightTensEl, rightOnesEl, rightNum);
+    }
+
+    function renderHeader(){
+      hdrA.textContent = revealHeaderNumbers ? String(leftNum) : '???';
+      hdrB.textContent = revealHeaderNumbers ? String(rightNum) : '???';
+    }
+
+    function setPVBox(el, mode, valueOrPlaceholder){
+      el.classList.remove('editable');
+      el.innerHTML = '';
+
+      if (mode === 'reveal'){
+        el.textContent = valueOrPlaceholder;
+        return null;
+      }
+
+      el.classList.add('editable');
+      const inp = document.createElement('input');
+      inp.className = 'pvInput';
+      inp.inputMode = 'numeric';
+      inp.maxLength = 1;
+      inp.placeholder = valueOrPlaceholder || '';
+      inp.addEventListener('input', ()=>{
+        const cleaned = sanitizeDigits(inp.value, 1);
+        if (inp.value !== cleaned) inp.value = cleaned;
+      });
+      el.appendChild(inp);
+      return inp;
+    }
+
+    function renderPV(){
+      const L = splitHundTensOnes(leftNum);
+      const R = splitHundTensOnes(rightNum);
+
+      [leftHundVal,leftTensVal,leftOnesVal,rightHundVal,rightTensVal,rightOnesVal].forEach(el=> el.classList.remove('good','bad'));
+
+      if (revealPVNumbers){
+        setPVBox(leftHundVal, 'reveal', L.hund);
+        setPVBox(leftTensVal, 'reveal', L.tens);
+        setPVBox(leftOnesVal, 'reveal', L.ones);
+        setPVBox(rightHundVal,'reveal', R.hund);
+        setPVBox(rightTensVal,'reveal', R.tens);
+        setPVBox(rightOnesVal,'reveal', R.ones);
+
+        renderPV._LH = renderPV._LT = renderPV._LO = null;
+        renderPV._RH = renderPV._RT = renderPV._RO = null;
+      } else {
+        renderPV._LH = setPVBox(leftHundVal, 'edit', '');
+        renderPV._LT = setPVBox(leftTensVal, 'edit', '');
+        renderPV._LO = setPVBox(leftOnesVal, 'edit', '');
+        renderPV._RH = setPVBox(rightHundVal,'edit', '');
+        renderPV._RT = setPVBox(rightTensVal, 'edit', '');
+        renderPV._RO = setPVBox(rightOnesVal, 'edit', '');
+      }
+    }
+
+    function clearInputsOnly(){
+      [gtA,gtB,ltA,ltB].forEach(el=> el.value = '');
+      if (!revealPVNumbers){
+        [renderPV._LH, renderPV._LT, renderPV._LO, renderPV._RH, renderPV._RT, renderPV._RO].forEach(inp=>{
+          if (inp) inp.value = '';
+        });
+      }
+      clearMarks();
+    }
+
+    function renderAll(){
+      renderHeader();
+      renderBlocks(leftHundEl, leftTensEl, leftOnesEl, leftNum);
+      renderBlocks(rightHundEl, rightTensEl, rightOnesEl, rightNum);
+      renderPV();
+      clearInputsOnly();
+      syncQuickButtons();
+    }
+
+    function checkAnswers(){
+      clearMarks();
+
+      const L = splitHundTensOnes(leftNum);
+      const R = splitHundTensOnes(rightNum);
+
+      const big = Math.max(leftNum, rightNum);
+      const small = Math.min(leftNum, rightNum);
+
+      // inequality rows: students fill numbers
+      const gA = sanitizeDigits(gtA.value, 3);
+      const gB = sanitizeDigits(gtB.value, 3);
+      mark(gtA, gA !== '' && Number(gA) === big);
+      mark(gtB, gB !== '' && Number(gB) === small);
+
+      const lA = sanitizeDigits(ltA.value, 3);
+      const lB = sanitizeDigits(ltB.value, 3);
+      mark(ltA, lA !== '' && Number(lA) === small);
+      mark(ltB, lB !== '' && Number(lB) === big);
+
+      // place-value check
+      let pvOk = true;
+      if (!revealPVNumbers){
+        const lh = renderPV._LH ? sanitizeDigits(renderPV._LH.value, 1) : '';
+        const lt = renderPV._LT ? sanitizeDigits(renderPV._LT.value, 1) : '';
+        const lo = renderPV._LO ? sanitizeDigits(renderPV._LO.value, 1) : '';
+        const rh = renderPV._RH ? sanitizeDigits(renderPV._RH.value, 1) : '';
+        const rt = renderPV._RT ? sanitizeDigits(renderPV._RT.value, 1) : '';
+        const ro = renderPV._RO ? sanitizeDigits(renderPV._RO.value, 1) : '';
+
+        const okLH = lh !== '' && Number(lh) === L.hund;
+        const okLT = lt !== '' && Number(lt) === L.tens;
+        const okLO = lo !== '' && Number(lo) === L.ones;
+        const okRH = rh !== '' && Number(rh) === R.hund;
+        const okRT = rt !== '' && Number(rt) === R.tens;
+        const okRO = ro !== '' && Number(ro) === R.ones;
+
+        leftHundVal.classList.add(okLH ? 'good' : 'bad');
+        leftTensVal.classList.add(okLT ? 'good' : 'bad');
+        leftOnesVal.classList.add(okLO ? 'good' : 'bad');
+        rightHundVal.classList.add(okRH ? 'good' : 'bad');
+        rightTensVal.classList.add(okRT ? 'good' : 'bad');
+        rightOnesVal.classList.add(okRO ? 'good' : 'bad');
+
+        pvOk = okLH && okLT && okLO && okRH && okRT && okRO;
+      }
+
+      const compareOk =
+        gtA.classList.contains('good') && gtB.classList.contains('good') &&
+        ltA.classList.contains('good') && ltB.classList.contains('good');
+
+      const ok = compareOk && pvOk;
+
+      msg.textContent = ok
+        ? '✅ Well done!'
+        : (!revealPVNumbers && !pvOk)
+          ? 'Try again. Fill in Hundreds, Tens and Ones correctly.'
+          : 'Try again. Use the unequal signs with the correct numbers.';
+    }
+
+    // sanitize inequality inputs
+    [gtA,gtB,ltA,ltB].forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        const cleaned = sanitizeDigits(inp.value, 3);
+        if (inp.value !== cleaned) inp.value = cleaned;
+      });
+    });
+
+    function ensureNotEqual(){
+      if (leftNum === rightNum){
+        rightNum = (rightNum === 999) ? 998 : rightNum + 1;
+        setRight.value = rightNum;
+      }
+    }
+
+    function applyNumbers(){
+      leftNum = clamp100to999(setLeft.value);
+      rightNum = clamp100to999(setRight.value);
+      ensureNotEqual();
+      renderAll();
+      // re-fit after render (ensures correct measured heights)
+      applySizes();
+    }
+
+    function randomizeNumbers(){
+      const a = 100 + Math.floor(Math.random()*900); // 100..999
+      let b = 100 + Math.floor(Math.random()*900);
+      if (b === a) b = (b === 999) ? 998 : b + 1;
+
+      setLeft.value = a;
+      setRight.value = b;
+      applyNumbers();
+    }
+
+    function setRevealHeader(on){
+      revealHeaderNumbers = !!on;
+      revealHeader.checked = revealHeaderNumbers;
+      renderHeader();
+      syncQuickButtons();
+    }
+    function setRevealPV(on){
+      revealPVNumbers = !!on;
+      revealPV.checked = revealPVNumbers;
+      renderPV();
+      clearInputsOnly();
+      syncQuickButtons();
+    }
+
+    function syncQuickButtons(){
+      quickHeaderBtn.classList.toggle('toggle-on', revealHeaderNumbers);
+      quickPVBtn.classList.toggle('toggle-on', revealPVNumbers);
+
+      quickHeaderBtn.textContent = revealHeaderNumbers ? 'Header: ON' : 'Header: OFF';
+      quickPVBtn.textContent = revealPVNumbers ? 'Place values: ON' : 'Place values: OFF';
+    }
+
+    // Teacher toggles
+    revealHeader.addEventListener('change', ()=> setRevealHeader(revealHeader.checked));
+    revealPV.addEventListener('change', ()=> setRevealPV(revealPV.checked));
+
+    // Drawer controls
+    applyBtn.addEventListener('click', applyNumbers);
+    randomBtn.addEventListener('click', randomizeNumbers);
+    teacherClear.addEventListener('click', clearInputsOnly);
+
+    // Main controls
+    checkBtn.addEventListener('click', checkAnswers);
+    clearBtn.addEventListener('click', clearInputsOnly);
+    quickRandomBtn.addEventListener('click', randomizeNumbers);
+    quickHeaderBtn.addEventListener('click', ()=> setRevealHeader(!revealHeaderNumbers));
+    quickPVBtn.addEventListener('click', ()=> setRevealPV(!revealPVNumbers));
+
+    // size sliders
+    hundWRange.addEventListener('input', applySizes);
+    tenWRange.addEventListener('input', applySizes);
+    oneSRange.addEventListener('input', applySizes);
+
+    // Drawer open/close
+    function openDrawer(){
+      overlay.classList.add('show');
+      drawer.classList.add('show');
+      overlay.setAttribute('aria-hidden','false');
+      document.body.classList.add('drawer-open');
+      fitStage();
+      // re-fit after layout shift from drawer
+      applySizes();
+    }
+    function closeDrawer(){
+      overlay.classList.remove('show');
+      drawer.classList.remove('show');
+      overlay.setAttribute('aria-hidden','true');
+      document.body.classList.remove('drawer-open');
+      fitStage();
+      applySizes();
+    }
+    openSettings.addEventListener('click', openDrawer);
+    openSettings2.addEventListener('click', openDrawer);
+    closeSettings.addEventListener('click', closeDrawer);
+    overlay.addEventListener('click', closeDrawer);
+    window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeDrawer(); });
+
+    // Init
+    setLeft.value = leftNum;
+    setRight.value = rightNum;
+
+    fitStage();
+    applySizes();
+    renderAll();
+    // one more fit after first paint for accurate container heights
+    requestAnimationFrame(()=> applySizes());
+  </script>
+<script src="https://cdn.counter.dev/script.js" data-id="825e93b6-ce99-40ef-8bcc-125f13297433" data-utcoffset="8"></script>
+</body>
+</html>
